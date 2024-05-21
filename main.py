@@ -1,6 +1,7 @@
 from collections import defaultdict
 from wordfreq import zipf_frequency, top_n_list
 from random import choice
+from colorama import Fore
 import pyinputplus
 
 LANG = "en"
@@ -58,7 +59,7 @@ class Wordle:
                 letter_dict[self._secret_word[i]] -= 1
 
         for i in range(self._num_letters):
-            if letter_dict[self._guessed_word[i]] > 0:
+            if letter_dict[self._guessed_word[i]] > 0 and match_list[i] == 0:
                 match_list[i][1] = 1
                 letter_dict[self._guessed_word[i]] -= 1
 
@@ -89,6 +90,9 @@ class Game:
     def get_game_length(self):
         return self._game_length
 
+    def get_secret_word(self):
+        return self._wordle.get_secret_word()
+
     def reset(self):
         self._word_length = 0
         self._game_length = 0
@@ -101,7 +105,10 @@ class Game:
             raise ValueError(error)
 
     def game_finished(self):
-        return self.current_round >= self._game_length or self._wordle.correct_word
+        return self.current_round >= self._game_length
+
+    def correct_word(self):
+        return self._wordle.correct_word
 
     def get_matches(self):
         return self._wordle.matches
@@ -121,7 +128,37 @@ class CLI:
         else:
             self.game = Game()
 
+    def main_loop(self):
+        while not (self.game.game_finished() or self.game.correct_word()):
+            print(f"{self.game.get_game_length() - self.game.current_round} guesses remaining")
+            user_guess = pyinputplus.inputStr("")
+            try:
+                self.game.set_guess_word(user_guess)
+
+                for match in self.game.get_matches():
+                    if match[1] == 2:
+                        print(Fore.GREEN + match[0], end="")
+
+                    elif match[1] == 1:
+                        print(Fore.YELLOW + match[0], end="")
+
+                    else:
+                        print(Fore.RED + match[0], end="")
+
+                print(Fore.RESET + "\n")
+
+                self.game.current_round += 1
+
+            except ValueError:
+                print("Invalid word")
+
+        if self.game.game_finished():
+            print(f"You ran out of guesses. The correct word was {self.game.get_secret_word()}.")
+
+        else:
+            print("Well done!")
+
 
 if __name__ == "__main__":
-    game = Game()
-    game.set_guess_word("asdfg")
+    interface = CLI()
+    interface.main_loop()
