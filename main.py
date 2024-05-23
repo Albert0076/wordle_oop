@@ -5,6 +5,7 @@ from colorama import Fore
 import pyinputplus
 
 LANG = "en"
+LETTERS = [chr(i) for i in range(65, 91)]
 
 
 def get_word_list(word_length: int = 5, number_of_words: int = 10_000):
@@ -50,8 +51,8 @@ class Wordle:
         # "0" -> Not in word, "1" -> Incorrect Position, "2" -> Correct Position
         match_list = [[self._guessed_word[i], 0] for i in range(self._num_letters)]
         letter_dict = defaultdict(lambda: 0)
-        for i in range(self._num_letters):
-            letter_dict[self._secret_word[i]] += 1
+        for char in self._secret_word:
+            letter_dict[char] += 1
 
         for i in range(self._num_letters):
             if self._secret_word[i] == self._guessed_word[i]:
@@ -59,7 +60,7 @@ class Wordle:
                 letter_dict[self._secret_word[i]] -= 1
 
         for i in range(self._num_letters):
-            if letter_dict[self._guessed_word[i]] > 0 and match_list[i] == 0:
+            if letter_dict[self._guessed_word[i]] > 0 and match_list[i][1] == 0:
                 match_list[i][1] = 1
                 letter_dict[self._guessed_word[i]] -= 1
 
@@ -69,6 +70,9 @@ class Wordle:
     def correct_word(self):
         return self._secret_word == self._guessed_word
 
+    def __repr__(self):
+        return f"Wordle({self._secret_word})"
+
 
 class Game:
     def __init__(self, word_length: int = 5, game_length: int = 6):
@@ -77,6 +81,7 @@ class Game:
         self._words = get_word_list(word_length=self._word_length)
         self._wordle = Wordle(self._word_length, self._words)
         self.current_round: int = 0
+        self._letters_remaining = defaultdict(lambda: True)
 
     def set_word_length(self, word_length: int):
         self._word_length = word_length
@@ -100,6 +105,7 @@ class Game:
     def set_guess_word(self, input_word: str):
         try:
             self._wordle.set_guessed_word(input_word)
+            self.update_remaining_letters(input_word)
 
         except ValueError as error:
             raise ValueError(error)
@@ -110,8 +116,20 @@ class Game:
     def correct_word(self):
         return self._wordle.correct_word
 
+    def update_remaining_letters(self, input_word):
+        letters = self._wordle.get_secret_word()
+        for char in input_word:
+            if not char in letters:
+                self._letters_remaining[char] = False
+
+    def get_remaining_letters(self):
+        return [letter for letter in LETTERS if self._letters_remaining[letter]]
+
     def get_matches(self):
         return self._wordle.matches
+
+    def __repr__(self):
+        return f"Game({self._word_length})"
 
 
 class CLI:
@@ -131,6 +149,8 @@ class CLI:
     def main_loop(self):
         while not (self.game.game_finished() or self.game.correct_word()):
             print(f"{self.game.get_game_length() - self.game.current_round} guesses remaining")
+            if pyinputplus.inputYesNo("See remaining letters?") == "yes":
+                self.show_remaining_letters()
             user_guess = pyinputplus.inputStr("")
             try:
                 self.game.set_guess_word(user_guess)
@@ -157,6 +177,10 @@ class CLI:
 
         else:
             print("Well done!")
+
+    def show_remaining_letters(self):
+        remaining_letters = self.game.get_remaining_letters()
+        print(f"Remaining letters are: {remaining_letters}")
 
 
 if __name__ == "__main__":
